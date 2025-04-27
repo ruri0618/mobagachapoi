@@ -56,6 +56,7 @@
             let results = [];
             let count = 0;
             let srHit = false;
+            let srCount = 0, rCount = 0, nCount = 0;
             do {
                 const member = members[Math.floor(Math.random() * members.length)];
                 const rarity = getRandomRarity();
@@ -64,8 +65,14 @@
                 if (rarity === "N") {
                     item = Math.random() < 0.5 ? "缶バッジ" : "ステッカー";
                     rarityTag = item;
-                } else if (rarity === "R") item = "キーホルダー";
-                else if (rarity === "SR") item = "BIGアクリルスタンド";
+                    nCount++;
+                } else if (rarity === "R") {
+                    item = "キーホルダー";
+                    rCount++;
+                } else if (rarity === "SR") {
+                    item = "BIGアクリルスタンド";
+                    srCount++;
+                }
                 results.push({ rarity: rarityTag, member: member, display: rarity === "SR" ? `<span class='rainbow-text'>${rarity}：${member} - ${item}</span>` : `${rarity}：${member} - ${item}` });
                 if (rarity === "SR") srHit = true;
                 count++;
@@ -81,7 +88,8 @@
                 }
             });
 
-            let displayText = results.map(r => r.display).join("<br>");
+            let summary = `SR: ${srCount}個 / R: ${rCount}個 / N: ${nCount}個\n\n`;
+            let displayText = summary + results.map(r => r.display).join("<br>");
             if (untilSR && srHit) {
                 const totalCost = count * 500;
                 displayText = `🎉✨🎊 ${count}回でSRが出ました！（合計 ${totalCost.toLocaleString()}円）🎊✨🎉<br><br>` + displayText;
