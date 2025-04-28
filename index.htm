@@ -24,6 +24,10 @@
     <button id="gacha10Button" style="font-size: 20px; padding: 8px 16px; margin-top: 10px;">10連ガチャ✨</button>
     <button id="gacha100Button" style="font-size: 20px; padding: 8px 16px; margin-top: 10px;">100連ガチャ✨</button>
     <button id="gachaUntilSRButton" style="font-size: 20px; padding: 8px 16px; margin-top: 10px;">SRが出るまでガチャ✨</button>
+    <div style="margin-top: 20px;">
+        <input id="oshiInput" type="text" placeholder="推しの名前を入力" style="font-size: 18px; padding: 5px;">
+        <button id="oshiGachaButton" style="font-size: 18px; padding: 5px 10px;">推しSRが出るまでガチャ✨</button>
+    </div>
     <h2 id="result" style="margin-top: 30px; white-space: pre-line;">ここに結果が表示されます</h2>
 
     <script>
@@ -52,11 +56,39 @@
             return rarities[rarities.length - 1].type;
         }
 
-        function drawGacha(times, untilSR = false) {
+        function findClosestName(input) {
+            let minDist = Infinity;
+            let closest = "";
+            for (let name of members) {
+                let dist = levenshteinDistance(input, name);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = name;
+                }
+            }
+            return minDist <= 3 ? closest : null;
+        }
+
+        function levenshteinDistance(a, b) {
+            const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+            for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+            for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+            for (let i = 1; i <= a.length; i++) {
+                for (let j = 1; j <= b.length; j++) {
+                    if (a[i - 1] === b[j - 1]) {
+                        dp[i][j] = dp[i - 1][j - 1];
+                    } else {
+                        dp[i][j] = Math.min(dp[i - 1][j - 1] + 1, dp[i][j - 1] + 1, dp[i - 1][j] + 1);
+                    }
+                }
+            }
+            return dp[a.length][b.length];
+        }
+
+        function drawGacha(times, untilSR = false, targetMember = null) {
             let results = [];
             let count = 0;
             let srHit = false;
-            let srCount = 0, rCount = 0, nCount = 0;
             do {
                 const member = members[Math.floor(Math.random() * members.length)];
                 const rarity = getRandomRarity();
@@ -65,31 +97,28 @@
                 if (rarity === "N") {
                     item = Math.random() < 0.5 ? "缶バッジ" : "ステッカー";
                     rarityTag = item;
-                    nCount++;
-                } else if (rarity === "R") {
-                    item = "キーホルダー";
-                    rCount++;
-                } else if (rarity === "SR") {
-                    item = "BIGアクリルスタンド";
-                    srCount++;
-                }
+                } else if (rarity === "R") item = "キーホルダー";
+                else if (rarity === "SR") item = "BIGアクリルスタンド";
                 results.push({ rarity: rarityTag, member: member, display: rarity === "SR" ? `<span class='rainbow-text'>${rarity}：${member} - ${item}</span>` : `${rarity}：${member} - ${item}` });
-                if (rarity === "SR") srHit = true;
                 count++;
-                if (untilSR && srHit) break;
+                if (untilSR && rarity === "SR" && (!targetMember || member === targetMember)) {
+                    srHit = true;
+                    break;
+                }
             } while (count < times || untilSR);
 
             results.sort((a, b) => {
-                const order = { "SR": 0, "R": 1, "缶バッジ": 2, "ステッカー": 3 };
-                if ((order[a.rarity] ?? 99) !== (order[b.rarity] ?? 99)) {
-                    return (order[a.rarity] ?? 99) - (order[b.rarity] ?? 99);
-                } else {
-                    return members.indexOf(a.member) - members.indexOf(b.member);
+                const rarityOrder = { "SR": 0, "R": 1, "缶バッジ": 2, "ステッカー": 3 };
+                if (rarityOrder[a.rarity] !== rarityOrder[b.rarity]) {
+                    return rarityOrder[a.rarity] - rarityOrder[b.rarity];
                 }
+                if (a.rarity === "缶バッジ" || a.rarity === "ステッカー") {
+                    return a.rarity.localeCompare(b.rarity);
+                }
+                return members.indexOf(a.member) - members.indexOf(b.member);
             });
 
-            let summary = `SR: ${srCount}個 / R: ${rCount}個 / N: ${nCount}個\n\n`;
-            let displayText = summary + results.map(r => r.display).join("<br>");
+            let displayText = results.map(r => r.display).join("<br>");
             if (untilSR && srHit) {
                 const totalCost = count * 500;
                 displayText = `🎉✨🎊 ${count}回でSRが出ました！（合計 ${totalCost.toLocaleString()}円）🎊✨🎉<br><br>` + displayText;
@@ -98,20 +127,23 @@
             document.getElementById("result").innerHTML = displayText;
         }
 
-        document.getElementById("gachaButton").addEventListener("click", () => {
-            drawGacha(1);
-        });
+        document.getElementById("gachaButton").addEventListener("click", () => drawGacha(1));
+        document.getElementById("gacha10Button").addEventListener("click", () => drawGacha(10));
+        document.getElementById("gacha100Button").addEventListener("click", () => drawGacha(100));
+        document.getElementById("gachaUntilSRButton").addEventListener("click", () => drawGacha(1, true));
 
-        document.getElementById("gacha10Button").addEventListener("click", () => {
-            drawGacha(10);
-        });
-
-        document.getElementById("gacha100Button").addEventListener("click", () => {
-            drawGacha(100);
-        });
-
-        document.getElementById("gachaUntilSRButton").addEventListener("click", () => {
-            drawGacha(1, true);
+        document.getElementById("oshiGachaButton").addEventListener("click", () => {
+            const input = document.getElementById("oshiInput").value.trim();
+            if (!input) {
+                alert("推しの名前を入力してね！");
+                return;
+            }
+            const corrected = findClosestName(input);
+            if (!corrected) {
+                alert("そのメンバーはいないよ！");
+                return;
+            }
+            drawGacha(1, true, corrected);
         });
     </script>
 </body>
